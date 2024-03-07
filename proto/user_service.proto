@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package user_service;
+option go_package = "/user_service";
+
+service Hashing {
+  rpc CheckHash(CheckHashRequest) returns (CheckHashResponse) {}
+  rpc GetHash(GetHashRequest) returns (GetHashResponse) {}
+  rpc CreateHash(CreateHashRequest) returns (CreateHashResponse) {}
+}
+
+message CheckHashRequest {
+  string payload = 1;
+}
+
+message CheckHashResponse {
+  bool exists = 1;
+}
+
+message GetHashRequest {
+  string payload = 1;
+}
+
+message GetHashResponse {
+  string hash = 1;
+}
+
+message CreateHashRequest {
+  string payload = 1;
+}
+
+message CreateHashResponse {
+  string hash = 1;
+}
