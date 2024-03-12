@@ -3,7 +3,9 @@ package main
 import (
 	"awesomeProject18/final-project-Ppolyak/proto/user_service"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/jmoiron/sqlx"
@@ -31,19 +33,47 @@ type PostgresDB struct {
 	db *sqlx.DB
 }
 
+func generateHash(payload string) string {
+	hash := sha256.New()
+	hash.Write([]byte(payload))
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func (s *server) GetHash(ctx context.Context, request *user_service.GetHashRequest) (*user_service.GetHashResponse, error) {
+	var hash string
+	payload := request.Payload
+	err := s.db.db.QueryRow("SELECT hash FROM hashes WHERE payload = $1", payload).Scan(&hash)
+	if err != nil {
+		log.Println("Error while querying", err)
+	}
+	return &user_service.GetHashResponse{Hash: hash}, nil
+}
+
 func (s *server) CheckHash(ctx context.Context, request *user_service.CheckHashRequest) (*user_service.CheckHashResponse, error) {
 	var result bool
 	payload := request.Payload
-	err := s.db.db.QueryRow("SELECT * FROM HASHES WHERE hash = $1", payload).Scan(result)
-	if errors.Is(err, sql.ErrNoRows) {
-		result = false
-	} else {
+	err := s.db.db.QueryRow("SELECT * FROM HASHES WHERE payload = $1", payload).Scan(result) // exec и пример запроса
+	if !errors.Is(err, sql.ErrNoRows) {
 		result = true
 	}
 
+	log.Println("RES", result)
 	return &user_service.CheckHashResponse{
 		Exists: result,
 	}, nil
+}
+
+func (s *server) CreateHash(ctx context.Context, request *user_service.CreateHashRequest) (*user_service.CreateHashResponse, error) {
+	var hash string
+	payload := request.Payload
+	hash = generateHash(payload)
+	res, err := s.db.db.Exec("INSERT INTO hashes(payload, hash) SELECT $1,$2 WHERE NOT EXISTS (SELECT 1 FROM hashes WHERE payload = $1)", payload, hash)
+	if err != nil {
+		log.Println(err)
+		log.Println(res)
+	}
+
+	return &user_service.CreateHashResponse{Hash: hash}, nil
 }
 
 func main() {
@@ -89,7 +119,8 @@ func (p *PostgresDB) MigrateDb() error {
 	queriesCreate := []string{
 		`CREATE TABLE IF NOT EXISTS hashes (
 			id SERIAL PRIMARY KEY,
-			hash TEXT UNIQUE
+			payload TEXT UNIQUE,
+			hash TEXT UNIQUE                  
 		)`,
 	}
 
