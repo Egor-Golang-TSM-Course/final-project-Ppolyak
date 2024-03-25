@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  server_grpc:
+    build:
+      dockerfile: /Dockerfile
+      context: ./grpc
+    ports:
+      - "8080:8000"
+
+  server_http:
+    build:
+      dockerfile: /Dockerfile
+      context: ./http
+    environment:
+      SERVER_GRPC: 'server_grpc:8080'
+    depends_on:
+      - server_grpc
